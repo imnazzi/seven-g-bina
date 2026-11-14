@@ -30,72 +30,53 @@
         navObserver.observe(sentinel);
     }
 
-    // Animation section: active navigation indicator follows the visible section.
+    // Active nav indicator follows whichever section a reference line (just below
+    // the fixed nav, ~28% down the viewport) is currently passing through. This
+    // works for sections of any height — the old threshold-based spy got stuck on
+    // tall sections like Services/Projects.
     const navLinks = Array.from(document.querySelectorAll('.nav-link'));
-    const sectionIds = navLinks
-        .map((link) => link.getAttribute('href'))
-        .filter((href) => href && href.startsWith('#'))
-        .map((href) => href.slice(1));
-
-    const sectionObserver = new IntersectionObserver((entries) => {
-        entries.forEach((entry) => {
-            if (!entry.isIntersecting) {
-                return;
-            }
-
-            navLinks.forEach((link) => {
-                link.classList.toggle('active', link.getAttribute('href') === `#${entry.target.id}`);
-            });
-        });
-    }, {
-        threshold: 0.34,
-        rootMargin: '-20% 0px -48% 0px'
+    const linkFor = new Map();
+    navLinks.forEach((link) => {
+        const href = link.getAttribute('href') || '';
+        if (href.startsWith('#') && href.length > 1) linkFor.set(href.slice(1), link);
     });
 
-    sectionIds.forEach((id) => {
-        const section = document.getElementById(id);
-        if (section) {
-            sectionObserver.observe(section);
-        }
-    });
+    const spySections = [...linkFor.keys()]
+        .map((id) => document.getElementById(id))
+        .filter(Boolean);
 
-    // Animation section: counters animate once when visible, using real company facts only.
-    const counters = document.querySelectorAll('[data-counter]');
-    const counterObserver = new IntersectionObserver((entries) => {
-        entries.forEach((entry) => {
-            if (!entry.isIntersecting) {
-                return;
+    if (spySections.length) {
+        const applyActiveNav = () => {
+            const line = window.innerHeight * 0.28;
+            let currentId = null;
+            for (const el of spySections) {
+                const r = el.getBoundingClientRect();
+                if (r.top <= line && r.bottom > line) { currentId = el.id; break; }
             }
+            if (!currentId) return; // between page top / past last section — keep last state
+            navLinks.forEach((l) => l.classList.toggle('active', l === linkFor.get(currentId)));
+        };
 
-            const counter = entry.target;
-            const target = Number(counter.dataset.target || '0');
-
-            if (reduceMotion) {
-                counter.textContent = target.toLocaleString('en-MY');
-                counterObserver.unobserve(counter);
-                return;
-            }
-
-            let frame = 0;
-            const totalFrames = 58;
-
-            const tick = () => {
-                frame += 1;
-                const progress = Math.min(frame / totalFrames, 1);
-                const eased = 1 - Math.pow(1 - progress, 3);
-                counter.textContent = Math.round(target * eased).toLocaleString('en-MY');
-
-                if (progress < 1) {
-                    requestAnimationFrame(tick);
-                }
-            };
-
-            requestAnimationFrame(tick);
-            counterObserver.unobserve(counter);
+        // Fire on section-boundary crossings via a 1px band at the reference line…
+        const spyObserver = new IntersectionObserver(applyActiveNav, {
+            threshold: 0,
+            rootMargin: '-28% 0px -71% 0px'
         });
-    }, { threshold: 0.6 });
+        spySections.forEach((el) => spyObserver.observe(el));
 
-    counters.forEach((counter) => counterObserver.observe(counter));
+        // …plus a rAF-throttled scroll/resize fallback so it never lags or sticks.
+        let spyTick = false;
+        const scheduleSpy = () => {
+            if (spyTick) return;
+            spyTick = true;
+            requestAnimationFrame(() => { spyTick = false; applyActiveNav(); });
+        };
+        window.addEventListener('scroll', scheduleSpy, { passive: true });
+        window.addEventListener('resize', scheduleSpy, { passive: true });
+        applyActiveNav();
+    }
+
+
 
     // Animation section: magnetic buttons move toward the pointer using transform only.
     if (!reduceMotion && supportsFinePointer) {
@@ -131,187 +112,294 @@
         });
     });
 
-    // Animation section: parallax-ready elements receive a CSS variable during idle animation frames only after pointer movement.
-    if (!reduceMotion) {
-        const parallaxTargets = document.querySelectorAll('[data-parallax]');
-        let pointerY = 0;
 
-        window.addEventListener('pointermove', (event) => {
-            pointerY = event.clientY - window.innerHeight / 2;
-        }, { passive: true });
-
-        const animateDepth = () => {
-            parallaxTargets.forEach((target) => {
-                const strength = Number(target.dataset.parallax || '0.04');
-                target.style.transform = `translate3d(0, ${pointerY * strength}px, 0)`;
-            });
-            requestAnimationFrame(animateDepth);
-        };
-
-        requestAnimationFrame(animateDepth);
-    }
 })();
 
-// ── Media Gallery Horizontal Slider ──────────────────────────────────────────
+// ── Services carousel: pause the CSS marquee while a touch is held ────────────
+// Auto-motion and hover-pause are pure CSS. This only keeps the animation from
+// fighting a finger on mobile, then resumes shortly after the touch ends.
 (() => {
-    const track = document.getElementById('media-slider-track');
-    const prevBtn = document.getElementById('media-prev-btn');
-    const nextBtn = document.getElementById('media-next-btn');
-    const dotsContainer = document.getElementById('media-slider-dots');
-    const counterEl = document.getElementById('media-slider-counter');
+    const marquee = document.querySelector('[data-service-marquee]');
+    if (!marquee) return;
 
-    if (!track) return;
-
-    const cards = Array.from(track.querySelectorAll('.media-card'));
-    if (!cards.length) return;
-
-    // Create pagination dots dynamically
-    cards.forEach((_, index) => {
-        const dot = document.createElement('button');
-        dot.className = `media-slider-dot ${index === 0 ? 'active' : ''}`;
-        dot.setAttribute('aria-label', `Go to slide ${index + 1}`);
-        dot.addEventListener('click', () => {
-            cards[index].scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'start' });
-        });
-        if (dotsContainer) dotsContainer.appendChild(dot);
-    });
-
-    const dots = dotsContainer ? Array.from(dotsContainer.children) : [];
-
-    // Scroll button handlers
-    const getScrollAmount = () => {
-        const cardWidth = cards[0].getBoundingClientRect().width;
-        return cardWidth + 20; // card width + gap
+    let resumeTimer;
+    const pause = () => {
+        clearTimeout(resumeTimer);
+        marquee.classList.add('is-paused');
+    };
+    const resumeSoon = () => {
+        clearTimeout(resumeTimer);
+        resumeTimer = setTimeout(() => marquee.classList.remove('is-paused'), 1600);
     };
 
-    if (prevBtn) {
-        prevBtn.addEventListener('click', () => {
-            track.scrollBy({ left: -getScrollAmount(), behavior: 'smooth' });
-        });
-    }
-
-    if (nextBtn) {
-        nextBtn.addEventListener('click', () => {
-            track.scrollBy({ left: getScrollAmount(), behavior: 'smooth' });
-        });
-    }
-
-    // Active dot update on scroll
-    let scrollTimeout;
-    track.addEventListener('scroll', () => {
-        clearTimeout(scrollTimeout);
-        scrollTimeout = setTimeout(() => {
-            const trackLeft = track.getBoundingClientRect().left;
-            let activeIdx = 0;
-            let minDiff = Infinity;
-
-            cards.forEach((card, idx) => {
-                const diff = Math.abs(card.getBoundingClientRect().left - trackLeft);
-                if (diff < minDiff) {
-                    minDiff = diff;
-                    activeIdx = idx;
-                }
-            });
-
-            dots.forEach((dot, idx) => {
-                dot.classList.toggle('active', idx === activeIdx);
-            });
-
-            if (counterEl) {
-                counterEl.textContent = `Asset ${activeIdx + 1} of ${cards.length}`;
-            }
-        }, 50);
-    }, { passive: true });
+    marquee.addEventListener('touchstart', pause, { passive: true });
+    marquee.addEventListener('touchend', resumeSoon, { passive: true });
+    marquee.addEventListener('touchcancel', resumeSoon, { passive: true });
 })();
 
-// ── Lightbox Modal with Entrance/Exit Animations ────────────────────────────
-(() => {
-    const lb = document.getElementById('gallery-lightbox');
-    const lbImg = document.getElementById('lightbox-img');
-    const lbCaption = document.getElementById('lightbox-caption');
-    const lbCounter = document.getElementById('lightbox-counter');
-    const closeBtn = document.getElementById('lightbox-close-btn');
-    const prevBtn = document.getElementById('lightbox-prev-btn');
-    const nextBtn = document.getElementById('lightbox-next-btn');
-    const backdrop = lb ? lb.querySelector('.lightbox-backdrop') : null;
-
-    if (!lb || !lbImg) return;
-
-    const cards = Array.from(document.querySelectorAll('[data-lightbox-src]'));
-    let currentIndex = 0;
-
-    function loadSlide(index) {
-        const total = cards.length;
-        if (!total) return;
-        currentIndex = ((index % total) + total) % total;
-
-        const card = cards[currentIndex];
-        const src = card.dataset.lightboxSrc;
-        const caption = card.dataset.lightboxCaption || '';
-
-        lbImg.style.opacity = '0.3';
-        const tmp = new Image();
-        tmp.onload = () => {
-            lbImg.src = src;
-            lbImg.alt = caption;
-            lbImg.style.opacity = '1';
-        };
-        tmp.onerror = () => {
-            lbImg.src = src;
-            lbImg.style.opacity = '1';
-        };
-        tmp.src = src;
-
-        if (lbCaption) lbCaption.textContent = caption;
-        if (lbCounter) lbCounter.textContent = `${currentIndex + 1} / ${total}`;
+// ── Executive Project Portfolio Filter Tabs & Interactive Detail Modal + Gallery ──
+(function initProjectPortfolio() {
+    // app.js is loaded with `defer`, but stay safe if the DOM is not parsed yet.
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', initProjectPortfolio, { once: true });
+        return;
     }
 
-    function openLightbox(index) {
-        lb.removeAttribute('hidden');
-        document.body.style.overflow = 'hidden';
-        loadSlide(index);
+    const modal = document.getElementById('project-modal');
+    if (!modal) {
+        console.error('Project modal (#project-modal) not found in DOM.');
+        return;
+    }
 
-        // Trigger entrance animation frame
-        requestAnimationFrame(() => {
-            requestAnimationFrame(() => {
-                lb.classList.add('is-open');
+    const modalTitle = document.getElementById('modal-title');
+    const modalCategory = document.getElementById('modal-category');
+    const modalClient = document.getElementById('modal-client');
+    const modalDescription = document.getElementById('modal-description');
+    const modalImage = document.getElementById('modal-image');
+    const galleryPrev = document.getElementById('modal-prev');
+    const galleryNext = document.getElementById('modal-next');
+    const galleryCounter = document.getElementById('modal-image-counter');
+    const galleryRoot = document.getElementById('modal-gallery');
+    const closeModalBtn = document.getElementById('close-modal');
+
+    // ── Category filter tabs (only wired up if the markup exists) ───────────
+    const filterBtns = document.querySelectorAll('.project-filter-btn');
+    if (filterBtns.length) {
+        filterBtns.forEach((btn) => {
+            btn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const filter = btn.dataset.filter;
+                filterBtns.forEach((b) => b.classList.remove('active'));
+                btn.classList.add('active');
+                document.querySelectorAll('.project-card').forEach((card) => {
+                    const match = filter === 'all' || card.dataset.category === filter;
+                    card.classList.toggle('is-hidden', !match);
+                    if (match) {
+                        card.style.opacity = '1';
+                        card.style.transform = 'scale(1)';
+                    }
+                });
             });
         });
-        if (closeBtn) closeBtn.focus();
     }
 
-    function closeLightbox() {
+    // ── Per-project image gallery state ────────────────────────────────────
+    let galleryImages = [];
+    let galleryIndex = 0;
+
+    function parseImages(card) {
+        const raw = card.getAttribute('data-images');
+        if (raw) {
+            try {
+                const arr = JSON.parse(raw);
+                if (Array.isArray(arr) && arr.length) return arr.filter(Boolean);
+            } catch (err) {
+                /* fall through to the single-image attribute */
+            }
+        }
+        const single = card.getAttribute('data-image');
+        return single ? [single] : [];
+    }
+
+    function showGalleryImage(index, animate) {
+        const total = galleryImages.length;
+        if (!total || !modalImage) return;
+        galleryIndex = ((index % total) + total) % total; // wrap both directions
+        const src = galleryImages[galleryIndex];
+
+        const apply = () => {
+            modalImage.src = src;
+            modalImage.style.opacity = '1';
+        };
+
+        if (animate) {
+            modalImage.style.opacity = '0';
+            const pre = new Image();
+            pre.onload = apply;
+            pre.onerror = apply;
+            pre.src = src;
+        } else {
+            apply();
+        }
+
+        if (galleryCounter) {
+            galleryCounter.textContent =
+                String(galleryIndex + 1).padStart(2, '0') + ' / ' + String(total).padStart(2, '0');
+        }
+    }
+
+    function syncGalleryControls() {
+        const multi = galleryImages.length > 1;
+        [galleryPrev, galleryNext, galleryCounter].forEach((el) => {
+            if (el) el.classList.toggle('hidden', !multi);
+        });
+    }
+
+    function openProjectModal(card) {
+        if (modalTitle) modalTitle.textContent = card.getAttribute('data-title') || '';
+        if (modalCategory) modalCategory.textContent = card.getAttribute('data-category') || '';
+        if (modalClient) modalClient.textContent = card.getAttribute('data-client') || '';
+        if (modalDescription) modalDescription.textContent = card.getAttribute('data-description') || '';
+
+        // This project's images only — never shared between projects.
+        galleryImages = parseImages(card);
+        galleryIndex = 0;
+        if (modalImage) modalImage.alt = card.getAttribute('data-title') || '';
+        syncGalleryControls();
+        showGalleryImage(0, false);
+
+        modal.classList.remove('hidden');
+        modal.classList.add('flex');
+        document.body.style.overflow = 'hidden';
+    }
+
+    function closeModal() {
+        modal.classList.add('hidden');
+        modal.classList.remove('flex');
+        document.body.style.overflow = '';
+    }
+
+    // ── Open: delegated so a click anywhere on a card (image, text, footer)
+    //    always resolves to its .project-card, regardless of pointer-events. ──
+    document.addEventListener('click', function (e) {
+        if (e.target.closest('#project-modal')) return; // clicks inside the modal handled below
+        const card = e.target.closest('.project-card');
+        if (!card) return;
+        e.preventDefault();
+        openProjectModal(card);
+    });
+
+    // ── Modal-internal controls ──────────────────────────────────────────
+    if (closeModalBtn) closeModalBtn.addEventListener('click', closeModal);
+    modal.addEventListener('click', function (e) {
+        if (e.target === modal) closeModal();
+    });
+    if (galleryPrev) galleryPrev.addEventListener('click', (e) => {
+        e.stopPropagation();
+        showGalleryImage(galleryIndex - 1, true);
+    });
+    if (galleryNext) galleryNext.addEventListener('click', (e) => {
+        e.stopPropagation();
+        showGalleryImage(galleryIndex + 1, true);
+    });
+
+    // Touch swipe on the gallery image (mobile)
+    if (galleryRoot) {
+        let touchStartX = 0;
+        let touchStartY = 0;
+        galleryRoot.addEventListener('touchstart', (e) => {
+            touchStartX = e.changedTouches[0].clientX;
+            touchStartY = e.changedTouches[0].clientY;
+        }, { passive: true });
+        galleryRoot.addEventListener('touchend', (e) => {
+            if (galleryImages.length < 2) return;
+            const dx = e.changedTouches[0].clientX - touchStartX;
+            const dy = e.changedTouches[0].clientY - touchStartY;
+            if (Math.abs(dx) > 45 && Math.abs(dx) > Math.abs(dy)) {
+                showGalleryImage(galleryIndex + (dx < 0 ? 1 : -1), true);
+            }
+        }, { passive: true });
+    }
+
+    // Keyboard: Escape closes, arrows step through the project gallery
+    window.addEventListener('keydown', function (e) {
+        if (modal.classList.contains('hidden')) return;
+        if (e.key === 'Escape') closeModal();
+        if (e.key === 'ArrowLeft' && galleryImages.length > 1) showGalleryImage(galleryIndex - 1, true);
+        if (e.key === 'ArrowRight' && galleryImages.length > 1) showGalleryImage(galleryIndex + 1, true);
+    });
+})();
+
+
+// ── Floating WhatsApp contact widget: toggle, outside-click, Esc ──────────────
+(function initWhatsAppWidget() {
+    const widget = document.querySelector('[data-wa-widget]');
+    if (!widget) return;
+
+    const toggle = widget.querySelector('[data-wa-toggle]');
+    const panel = document.getElementById('wa-panel');
+    const cta = widget.querySelector('[data-wa-cta]');
+    if (!toggle || !panel) return;
+
+    function setOpen(open) {
+        widget.classList.toggle('is-open', open);
+        toggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+        panel.setAttribute('aria-hidden', open ? 'false' : 'true');
+    }
+
+    const isOpen = () => widget.classList.contains('is-open');
+
+    toggle.addEventListener('click', function (e) {
+        e.stopPropagation();
+        setOpen(!isOpen());
+    });
+
+    // Click outside the widget closes the panel.
+    document.addEventListener('click', function (e) {
+        if (isOpen() && !widget.contains(e.target)) setOpen(false);
+    });
+
+    // Esc closes and returns focus to the toggle.
+    document.addEventListener('keydown', function (e) {
+        if (e.key === 'Escape' && isOpen()) {
+            setOpen(false);
+            toggle.focus();
+        }
+    });
+
+    // Leaving for WhatsApp: collapse so the panel isn't open on return.
+    if (cta) cta.addEventListener('click', function () { setOpen(false); });
+})();
+
+// ── Certificate lightbox (SSM Certificate of Incorporation) ──────────────────
+(function initCertLightbox() {
+    const lb = document.getElementById('cert-lightbox');
+    const opener = document.querySelector('[data-cert-open]');
+    if (!lb || !opener) return;
+
+    const closeBtn = lb.querySelector('[data-cert-close]');
+    const isOpen = () => lb.classList.contains('is-open');
+
+    const open = () => {
+        lb.classList.add('is-open');
+        document.body.style.overflow = 'hidden';
+        if (closeBtn) closeBtn.focus();
+    };
+    const close = () => {
         lb.classList.remove('is-open');
         document.body.style.overflow = '';
+        opener.focus();
+    };
 
-        // Wait for CSS transition (350ms) to finish before setting hidden
-        setTimeout(() => {
-            if (!lb.classList.contains('is-open')) {
-                lb.setAttribute('hidden', '');
-            }
-        }, 350);
-    }
-
-    cards.forEach((card, i) => {
-        card.addEventListener('click', () => openLightbox(i));
-        card.addEventListener('keydown', (e) => {
-            if (e.key === 'Enter' || e.key === ' ') {
-                e.preventDefault();
-                openLightbox(i);
-            }
-        });
-    });
-
-    if (prevBtn) prevBtn.addEventListener('click', (e) => { e.stopPropagation(); loadSlide(currentIndex - 1); });
-    if (nextBtn) nextBtn.addEventListener('click', (e) => { e.stopPropagation(); loadSlide(currentIndex + 1); });
-    if (closeBtn) closeBtn.addEventListener('click', closeLightbox);
-    if (backdrop) backdrop.addEventListener('click', closeLightbox);
-
+    opener.addEventListener('click', open);
+    if (closeBtn) closeBtn.addEventListener('click', close);
+    lb.addEventListener('click', (e) => { if (e.target === lb) close(); });
     document.addEventListener('keydown', (e) => {
-        if (lb.hasAttribute('hidden')) return;
-        if (e.key === 'Escape') closeLightbox();
-        if (e.key === 'ArrowLeft') loadSlide(currentIndex - 1);
-        if (e.key === 'ArrowRight') loadSlide(currentIndex + 1);
+        if (e.key === 'Escape' && isOpen()) close();
     });
 })();
 
+/* iOS/Safari safety nets — no visual change: force reveal if IntersectionObserver is missing,
+       and promote lazy images to eager after load (Safari can stall lazy-load inside animated containers). */
+    (function () {
+        if (!('IntersectionObserver' in window)) {
+            document.querySelectorAll('.reveal').forEach(function (el) { el.classList.add('is-visible'); });
+        }
+        var ua = navigator.userAgent;
+        var isSafari = /Safari/i.test(ua) && !/Chrome|CriOS|Chromium|Android|Edg|FxiOS/i.test(ua);
+        var isIOS = /iP(hone|ad|od)/i.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+        if (!(isSafari || isIOS)) return;
+        window.addEventListener('load', function () {
+            setTimeout(function () {
+                document.querySelectorAll('img[loading="lazy"]').forEach(function (img) {
+                    img.loading = 'eager';
+                    if (!img.complete) { var src = img.getAttribute('src'); if (src) img.setAttribute('src', src); }
+                });
+            }, 800);
+            setTimeout(function () {
+                document.querySelectorAll('.reveal:not(.is-visible)').forEach(function (el) {
+                    if (el.getBoundingClientRect().top < window.innerHeight * 1.5) el.classList.add('is-visible');
+                });
+            }, 4000);
+        });
+    })();
