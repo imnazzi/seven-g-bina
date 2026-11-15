@@ -2452,6 +2452,8 @@ button.cert-frame:focus-visible {
    Name stays on one line at every phone width: its font, the logo and the gaps scale with
    the viewport, and on phones the Contact Us pill is a round phone icon. */
 .header-cta-icon { display: none; }
+/* Header uses the tightly cropped logo-mark.png; this keeps the desktop mark its original size. */
+.header-logo { height: 1.375rem; }
 
 @media (max-width: 767px) {
     body > header.site-header {
@@ -2461,7 +2463,7 @@ button.cert-frame:focus-visible {
         gap: 0.5rem;
     }
     .header-brand { gap: clamp(0.4rem, 2vw, 0.625rem); min-width: 0; }
-    .header-logo { height: clamp(2.25rem, 10vw, 2.875rem); flex-shrink: 0; }
+    .header-logo { height: clamp(1.875rem, 8.7vw, 2.25rem); flex-shrink: 0; }
     .header-name {
         font-size: clamp(0.75rem, 4.2vw, 1rem);
         letter-spacing: 0;
