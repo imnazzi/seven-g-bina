@@ -583,8 +583,8 @@
                             data-title="Bungalow Residence Project"
                             data-client="Private Client"
                             data-description="Residential construction works for a detached bungalow home, covering structural, architectural, and finishing scopes to deliver a completed private residence."
-                            data-image="assets/images/Screenshot_13-7-2026_122645_.jpeg"
-                            data-images='[&quot;assets/images/Screenshot_13-7-2026_122645_.jpeg&quot;,&quot;assets/images/Screenshot_13-7-2026_122130_.jpeg&quot;,&quot;assets/images/Screenshot_13-7-2026_1236_.jpeg&quot;]'
+                            data-image="assets/images/bungalow2.jpg"
+                            data-images='[&quot;assets/images/bungalow2.jpg&quot;,&quot;assets/images/bungalow1.jpg&quot;,&quot;assets/images/bungalow3.jpg&quot;]'
                             style="--delay: 60ms">
 
                             <!-- Hero image -->
@@ -881,12 +881,13 @@
                             data-title="Lebuhraya Bukit Jalil Road Widening"
                             data-client="Public Works / Infrastructure"
                             data-description="Comprehensive road expansion and pavement upgrading along Lebuhraya Bukit Jalil to improve traffic flow and load-bearing capacity for heavy transport."
-                            data-image="assets/images/road-widening.jpg'
+                            data-image="assets/images/road-widening.jpg"
+                            data-images='[&quot;assets/images/road-widening.jpg&quot;,&quot;assets/images/road-widening1.jpg&quot;,&quot;assets/images/road-widening2.jpg&quot;,&quot;assets/images/road-widening3.jpg&quot;]'
                             style="--delay: 300ms">
 
                             <!-- Hero image -->
                             <div class="pj-media">
-                                <img class="pj-cover" src="assets/images/Screenshot_13-7-2026_134517_.jpeg"
+                                <img class="pj-cover" src="assets/images/road-widening.jpg"
                                     alt="Lebuhraya Bukit Jalil Road Widening" loading="lazy">
                                 <span class="pj-scrim" aria-hidden="true"></span>
                                 <span class="pj-num">06</span>
@@ -911,7 +912,7 @@
                                                             <div class="pj-thumbs" aria-hidden="true">
                                                                             <span class="pj-thumb"><img src="assets/images/road-widening1.jpg" alt=""
                                                 loading="lazy"></span>
-                                                                            <span class="pj-thumb"><img src="assets/images/road-widening2.jpg " alt=""
+                                                                            <span class="pj-thumb"><img src="assets/images/road-widening2.jpg" alt=""
                                                 loading="lazy"></span>
                                                                             <span class="pj-thumb"><img src="assets/images/road-widening3.jpg" alt=""
                                                 loading="lazy"></span>
@@ -1032,8 +1033,8 @@
                             data-title="Indoor Futsal Court Construction"
                             data-client="Football Association of Malaysia (FAM)"
                             data-description="Construction of professional indoor futsal facility complete with FIFA-spec synthetic turf, steel roof superstructure, and sports floodlighting."
-                            data-image="assets/images/Screenshot_13-7-2026_12317_-1.jpeg"
-                            data-images='[&quot;assets/images/Screenshot_13-7-2026_12317_-1.jpeg&quot;,&quot;assets/images/Screenshot_13-7-2026_1236_-1.jpeg&quot;,&quot;assets/images/Screenshot_13-7-2026_12251_-1.jpeg&quot;,&quot;assets/images/Screenshot_13-7-2026_12251_-2.jpeg&quot;]'
+                            data-image="assets/images/futsal.jpg"
+                            data-images='[&quot;assets/images/futsal.jpg&quot;,&quot;assets/images/futsal1.jpg&quot;,&quot;assets/images/futsal2.jpg&quot;,&quot;assets/images/futsal3.jpg&quot;]'
                             style="--delay: 60ms">
 
                             <!-- Hero image -->
@@ -1061,11 +1062,11 @@
 
                             <!-- Thumbnail strip -->
                                                             <div class="pj-thumbs" aria-hidden="true">
-                                                                            <span class="pj-thumb"><img src=" assets/images/futsal1.jpg" alt=""
+                                                                            <span class="pj-thumb"><img src="assets/images/futsal1.jpg" alt=""
                                                 loading="lazy"></span>
                                                                             <span class="pj-thumb"><img src="assets/images/futsal2.jpg" alt=""
                                                 loading="lazy"></span>
-                                                                            <span class="pj-thumb"><img src="assets/images/futsal3.jpg " alt=""
+                                                                            <span class="pj-thumb"><img src="assets/images/futsal3.jpg" alt=""
                                                 loading="lazy"></span>
                                                                         <span class="pj-more">
                                                                                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
